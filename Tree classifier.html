@@ -1,0 +1,65 @@
+<section id="ml-demo" style="background-color: var(--card-bg); padding: 3rem; border-radius: 8px; margin: 2rem auto; max-width: 800px; border: 1px solid var(--border-color);">
+    <h3 style="color: var(--accent-color); margin-bottom: 1rem;">🌳 Real-Time Tree Classifier Demo</h3>
+    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+        Paste a shareable Google Drive link of a tree image below to test my Supervised ML classification model live.
+    </p>
+    
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+        <input type="text" id="driveLinkInput" placeholder="Paste Google Drive share link here..." 
+               style="flex: 1; padding: 0.75rem; border-radius: 4px; border: 1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-color); min-width: 280px;">
+        <button onclick="runClassification()" class="btn" style="padding: 0.75rem 1.5rem;">Classify Tree</button>
+    </div>
+    
+    <div id="resultBox" style="display: none; padding: 1rem; border-radius: 4px; background-color: var(--bg-color); border-left: 4px solid var(--accent-color);">
+        <p id="resultText" style="font-weight: 600;"></p>
+    </div>
+</section>
+
+<script>
+function extractFileId(url) {
+    // Regular expression to safely grab the ID from standard Google Drive share links
+    const matches = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    return (matches && matches[1]) ? matches[1] : null;
+}
+
+async function runClassification() {
+    const linkInput = document.getElementById('driveLinkInput').value;
+    const resultBox = document.getElementById('resultBox');
+    const resultText = document.getElementById('resultText');
+    
+    const fileId = extractFileId(linkInput);
+    
+    if (!fileId) {
+        resultBox.style.display = "block";
+        resultBox.style.borderLeftColor = "#ef4444"; // Red for error
+        resultText.innerText = "❌ Invalid Google Drive URL structure. Please check the link.";
+        return;
+    }
+    
+    resultBox.style.display = "block";
+    resultBox.style.borderLeftColor = "var(--accent-color)";
+    resultText.innerText = "⏳ Connecting to Google Drive and analyzing structural features...";
+    
+    try {
+        // Post the File ID to your running Flask server
+        const response = await fetch('http://127.0.0.1:5000/classify-drive-file', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file_id: fileId })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            resultBox.style.borderLeftColor = "#10b981"; // Green for success
+            resultText.innerHTML = `✅ Analysis Complete! The model identifies this tree variant as: <span style="color: var(--accent-color); font-size: 1.2rem; font-weight: bold;">${data.prediction}</span>`;
+        } else {
+            resultBox.style.borderLeftColor = "#ef4444";
+            resultText.innerText = `❌ Error: ${data.error}`;
+        }
+    } catch (error) {
+        resultBox.style.borderLeftColor = "#ef4444";
+        resultText.innerText = "❌ Unable to communicate with the ML backend. Ensure app.py is running locally.";
+    }
+}
+</script>
