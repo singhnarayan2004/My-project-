@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Finance Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <header class="mb-8 flex justify-between items-center border-b border-slate-200 pb-5">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900 tracking-tight">FinTrack</h1>
+                <p class="text-slate-500 text-sm">Personal Finance & Budget Dashboard</p>
+            </div>
+            <div class="text-sm text-slate-400 font-medium" id="current-date"></div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-100 flex flex-col justify-between">
+                <div>
+                    <span class="text-xs font-semibold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2.5 py-1 rounded-full">Total Income</span>
+                    <h3 class="text-3xl font-bold mt-4 text-slate-900" id="total-income">₹0.00</h3>
+                </div>
+                <div class="mt-4 text-xs text-slate-400">Updated in real-time</div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-100 flex flex-col justify-between">
+                <div>
+                    <span class="text-xs font-semibold text-rose-600 uppercase tracking-wider bg-rose-50 px-2.5 py-1 rounded-full">Total Expenses</span>
+                    <h3 class="text-3xl font-bold mt-4 text-slate-900" id="total-expenses">₹0.00</h3>
+                </div>
+                <div class="mt-4 text-xs text-slate-400">Updated in real-time</div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-100 flex flex-col justify-between transition-all duration-300" id="balance-card">
+                <div>
+                    <span class="text-xs font-semibold text-blue-600 uppercase tracking-wider bg-blue-50 px-2.5 py-1 rounded-full">Net Balance</span>
+                    <h3 class="text-3xl font-bold mt-4 text-slate-900" id="net-balance">₹0.00</h3>
+                </div>
+                <div class="mt-4 text-xs text-slate-400" id="balance-status">Perfectly balanced</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div class="lg:col-span-1 space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-100">
+                    <h2 class="text-lg font-semibold text-slate-900 mb-4">Add Transaction</h2>
+                    <form id="transaction-form" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 uppercase mb-1">Description</label>
+                            <input type="text" id="desc" required placeholder="e.g., Grocery, Salary, Rent" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 uppercase mb-1">Type</label>
+                                <select id="type" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                                    <option value="income">Income (+)</option>
+                                    <option value="expense">Expense (-)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 uppercase mb-1">Amount (₹)</label>
+                                <input type="number" id="amount" required step="0.01" min="0.01" placeholder="0.00" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 uppercase mb-1">Category</label>
+                            <select id="category" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                                <option value="Salary/Income">Salary / Income</option>
+                                <option value="Food">Food & Dining</option>
+                                <option value="Rent/Utilities">Rent & Utilities</option>
+                                <option value="Entertainment">Entertainment</option>
+                                <option value="Transport">Transportation</option>
+                                <option value="Other">Other / Misc</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="w-full mt-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium py-2.5 px-4 rounded-xl transition-colors duration-150 shadow-sm cursor-pointer">
+                            Add Transaction
+                        </button>
+                    </form>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-100">
+                    <h2 class="text-lg font-semibold text-slate-900 mb-2">Spending Breakdown</h2>
+                    <p class="text-xs text-slate-400 mb-4">Visual insights by category</p>
+                    <div class="relative flex justify-center items-center h-64">
+                        <canvas id="expenseChart"></canvas>
+                        <div id="no-data-msg" class="absolute inset-0 flex items-center justify-center bg-white text-sm text-slate-400 font-medium">
+                            No expenses logged yet
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-2xl shadow-xs border border-slate-100 h-full flex flex-col">
+                    <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900">Transaction History</h2>
+                            <p class="text-xs text-slate-400 mt-0.5">Your recent financial activities</p>
+                        </div>
+                        <button id="clear-btn" class="text-xs font-medium text-slate-400 hover:text-rose-600 transition-colors duration-150 cursor-pointer">
+                            Clear All
+                        </button>
+                    </div>
+                    
+                    <div class="flex-1 overflow-y-auto max-h-[600px] divide-y divide-slate-100" id="transaction-list">
+                        </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+        let expenseChart = null;
+
+        // Dom Elements
+        const form = document.getElementById('transaction-form');
+        const list = document.getElementById('transaction-list');
+        const totalIncomeEl = document.getElementById('total-income');
+        const totalExpensesEl = document.getElementById('total-expenses');
+        const netBalanceEl = document.getElementById('net-balance');
+        const balanceCard = document.getElementById('balance-card');
+        const balanceStatus = document.getElementById('balance-status');
+        const clearBtn = document.getElementById('clear-btn');
+
+        // Set live display date
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-IN', {
+            weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+        });
+
+        // Initialize App UI
+        function init() {
+            updateMetrics();
+            renderList();
+            initChart();
+        }
+
+        // Indian Currency Formatting Helper
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+                minimumFractionDigits: 2
+            }).format(amount);
+        }
+
+        // Calculation & Metric updates
+        function updateMetrics() {
+            const income = transactions
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const expenses = transactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const balance = income - expenses;
+
+            totalIncomeEl.innerText = formatCurrency(income);
+            totalExpensesEl.innerText = formatCurrency(expenses);
+            
+            // Handles sign cleanly alongside the currency formatting string
+            if (balance < 0) {
+                netBalanceEl.innerText = `-${formatCurrency(Math.abs(balance))}`;
+            } else {
+                netBalanceEl.innerText = formatCurrency(balance);
+            }
+
+            // Contextual UI adjustments for Net Balance Status
+            if (balance < 0) {
+                balanceCard.className = "bg-rose-50/50 p-6 rounded-2xl shadow-xs border border-rose-100 flex flex-col justify-between";
+                balanceStatus.className = "mt-4 text-xs font-medium text-rose-600";
+                balanceStatus.innerText = "You are in the negative";
+            } else if (balance > 0) {
+                balanceCard.className = "bg-emerald-50/40 p-6 rounded-2xl shadow-xs border border-emerald-100 flex flex-col justify-between";
+                balanceStatus.className = "mt-4 text-xs font-medium text-emerald-600";
+                balanceStatus.innerText = "Net positive savings";
+            } else {
+                balanceCard.className = "bg-white p-6 rounded-2xl shadow-xs border border-slate-100 flex flex-col justify-between";
+                balanceStatus.className = "mt-4 text-xs text-slate-400";
+                balanceStatus.innerText = "Perfectly balanced";
+            }
+        }
+
+        // Render Transaction List UI
+        function renderList() {
+            list.innerHTML = '';
+            
+            if(transactions.length === 0) {
+                list.innerHTML = `
+                    <div class="p-12 text-center text-slate-400 text-sm flex flex-col items-center justify-center h-full">
+                        <p>No transactions added yet. Start logging above!</p>
+                    </div>`;
+                return;
+            }
+
+            // Show newest transactions first
+            [...transactions].reverse().forEach(t => {
+                const item = document.createElement('div');
+                item.className = "p-4 sm:px-6 flex justify-between items-center hover:bg-slate-50/80 transition-colors duration-150 group";
+                
+                const isIncome = t.type === 'income';
+                
+                item.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm ${isIncome ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
+                            ${isIncome ? '↓' : '↑'}
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-slate-900 text-sm">${t.desc}</h4>
+                            <span class="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">${t.category}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span class="font-semibold text-sm ${isIncome ? 'text-emerald-600' : 'text-slate-800'}">
+                            ${isIncome ? '+' : '-'}${formatCurrency(t.amount)}
+                        </span>
+                        <button onclick="deleteTransaction(${t.id})" class="text-slate-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-all duration-150 cursor-pointer text-sm">
+                            ✕
+                        </button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        // Chart.js Category Processing Logic
+        function initChart() {
+            const categories = ['Food', 'Rent/Utilities', 'Entertainment', 'Transport', 'Other'];
+            const categoryTotals = categories.map(cat => {
+                return transactions
+                    .filter(t => t.type === 'expense' && t.category === cat)
+                    .reduce((sum, t) => sum + t.amount, 0);
+            });
+
+            const hasExpenses = categoryTotals.some(val => val > 0);
+            const noDataMsg = document.getElementById('no-data-msg');
+
+            if (!hasExpenses) {
+                noDataMsg.classList.remove('hidden');
+                if (expenseChart) expenseChart.destroy();
+                return;
+            }
+            
+            noDataMsg.classList.add('hidden');
+
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            
+            if (expenseChart) {
+                expenseChart.data.datasets[0].data = categoryTotals;
+                expenseChart.update();
+            } else {
+                expenseChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: categories,
+                        datasets: [{
+                            data: categoryTotals,
+                            backgroundColor: ['#f87171', '#60a5fa', '#fbbf24', '#34d399', '#a78bfa'],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Inter', size: 11 } } }
+                        },
+                        cutout: '70%'
+                    }
+                });
+            }
+        }
+
+        // Form Event Submission Handling
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const transaction = {
+                id: Date.now(),
+                desc: document.getElementById('desc').value,
+                type: document.getElementById('type').value,
+                amount: parseFloat(document.getElementById('amount').value),
+                category: document.getElementById('category').value
+            };
+
+            transactions.push(transaction);
+            saveAndRefresh();
+            form.reset();
+        });
+
+        // Delete Individual Row Transaction Action
+        window.deleteTransaction = function(id) {
+            transactions = transactions.filter(t => t.id !== id);
+            saveAndRefresh();
+        }
+
+        // Global Clear Trigger action
+        clearBtn.addEventListener('click', () => {
+            if(confirm('Are you sure you want to clear your dashboard records?')) {
+                transactions = [];
+                saveAndRefresh();
+            }
+        });
+
+        // Sync to Persistent browser Storage and refresh components
+        function saveAndRefresh() {
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            updateMetrics();
+            renderList();
+            initChart();
+        }
+
+        // Launch initialization on load
+        init();
+    </script>
+</body>
+</html>
