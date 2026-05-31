@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Password Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">🔑 PassGen</h1>
+            <p class="text-slate-500 text-sm mt-1">Secure Password Generator & Strength Checker</p>
+        </div>
+
+        <div class="bg-slate-900 text-white p-4 rounded-xl relative mb-6 group min-h-[72px] flex items-center justify-between">
+            <div class="overflow-x-auto whitespace-nowrap pr-10 font-mono text-lg tracking-wider" id="password-display">
+                Click Generate Below
+            </div>
+            <button id="copy-btn" class="absolute right-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white p-2 rounded-lg transition-colors cursor-pointer hidden" title="Copy to clipboard">
+                📋
+            </button>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2" id="length-label">
+                    Password Length: 12
+                </label>
+                <input type="range" id="length-slider" min="6" max="32" value="12" class="w-full accent-slate-900 h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer">
+                <div class="flex justify-between text-xs text-slate-400 mt-1">
+                    <span>Min: 6</span>
+                    <span>Max: 32</span>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center text-sm">
+                <span class="text-slate-500 font-medium">Strength Rating:</span>
+                <span id="strength-badge" class="font-bold text-slate-400">N/A</span>
+            </div>
+
+            <button id="generate-btn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 px-4 rounded-xl transition-colors duration-150 shadow-sm cursor-pointer text-center">
+                Generate Password
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Character Pools
+        const UPPERCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const LOWERCASE = "abcdefghijklmnopqrstuvwxyz";
+        const DIGITS = "0123456789";
+        const PUNCTUATION = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+        const ALL_CHARS = UPPERCASE + LOWERCASE + DIGITS + PUNCTUATION;
+
+        // DOM Elements
+        const lengthSlider = document.getElementById('length-slider');
+        const lengthLabel = document.getElementById('length-label');
+        const passwordDisplay = document.getElementById('password-display');
+        const strengthBadge = document.getElementById('strength-badge');
+        const generateBtn = document.getElementById('generate-btn');
+        const copyBtn = document.getElementById('copy-btn');
+
+        // Update real-time length text indicator
+        lengthSlider.addEventListener('input', (e) => {
+            lengthLabel.innerText = `Password Length: ${e.target.value}`;
+        });
+
+        // Strength Checker Engine (Exact mapping of your Python Logic)
+        function checkStrength(password) {
+            const length = password.length;
+            const hasUpper = /[A-Z]/.test(password);
+            const hasLower = /[a-z]/.test(password);
+            const hasDigit = /[0-9]/.test(password);
+            
+            // Checks for any punctuation matched in the string pool
+            const hasSpec = [...password].some(char => PUNCTUATION.includes(char));
+
+            // Accumulate conditions met (max score 5)
+            const score = [length >= 12, hasUpper, hasLower, hasDigit, hasSpec].filter(Boolean).length;
+
+            if (score === 5) {
+                strengthBadge.className = "font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-md";
+                return "Very Strong 💪";
+            } else if (score >= 3) {
+                strengthBadge.className = "font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-md";
+                return "Moderate ⚠️";
+            } else {
+                strengthBadge.className = "font-bold text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-md";
+                return "Weak 🛑";
+            }
+        }
+
+        // Helper to grab a random character from a given string/pool
+        function getRandomChar(pool) {
+            return pool[Math.floor(Math.random() * pool.length)];
+        }
+
+        // Shuffle Array Helper (Fisher-Yates / equivalents to random.shuffle)
+        defShuffle = (array) => {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        };
+
+        // Core Password Generation Function
+        function generatePassword() {
+            const length = parseInt(lengthSlider.value);
+
+            // Step 1: Guarantee one of each criteria type just like your Python list setup
+            let passwordArr = [
+                getRandomChar(UPPERCASE),
+                getRandomChar(LOWERCASE),
+                getRandomChar(DIGITS),
+                getRandomChar(PUNCTUATION)
+            ];
+
+            // Step 2: Fill out remaining slots randomly from the combined pool
+            for (let i = 0; i < (length - 4); i++) {
+                passwordArr.push(getRandomChar(ALL_CHARS));
+            }
+
+            // Step 3: Mix thoroughly
+            passwordArr = defShuffle(passwordArr);
+            const finalPassword = passwordArr.join("");
+
+            // Step 4: Render UI Changes
+            passwordDisplay.innerText = finalPassword;
+            passwordDisplay.className = "overflow-x-auto whitespace-nowrap pr-10 font-mono text-lg tracking-wider text-slate-100";
+            strengthBadge.innerText = checkStrength(finalPassword);
+            copyBtn.classList.remove('hidden');
+        }
+
+        // Action Events Click Setup
+        generateBtn.addEventListener('click', generatePassword);
+
+        copyBtn.addEventListener('click', () => {
+            const textToCopy = passwordDisplay.innerText;
+            if(textToCopy && textToCopy !== "Click Generate Below") {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    const oldText = copyBtn.innerText;
+                    copyBtn.innerText = "✓";
+                    setTimeout(() => copyBtn.innerText = oldText, 1500);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
