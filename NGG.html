@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Number Guesser</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 text-center">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold tracking-tight text-white mb-1">🎲 Number Guesser</h1>
+            <p class="text-slate-400 text-sm">I have selected a number between 1 and 100. Can you guess it?</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-slate-700/50 p-3 rounded-xl border border-slate-600/50">
+                <span class="block text-xs uppercase font-semibold text-slate-400 tracking-wider">Current Attempts</span>
+                <span id="attempt-count" class="text-xl font-bold text-white">0</span>
+            </div>
+            <div class="bg-slate-700/50 p-3 rounded-xl border border-slate-600/50">
+                <span class="block text-xs uppercase font-semibold text-slate-400 tracking-wider">🏆 Personal Best</span>
+                <span id="best-score" class="text-xl font-bold text-amber-400">--</span>
+            </div>
+        </div>
+
+        <div id="feedback-box" class="bg-slate-950 p-4 rounded-xl min-h-[64px] flex items-center justify-center font-medium text-slate-300 mb-6 border border-slate-800">
+            🎯 Enter a number below to start playing!
+        </div>
+
+        <form id="game-form" class="space-y-4" autocomplete="off">
+            <div class="relative">
+                <input type="number" id="user-guess" min="1" max="100" required placeholder="Type a number (1-100)" 
+                    class="w-full text-center px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-lg font-semibold text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500">
+            </div>
+            <button type="submit" id="submit-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 px-4 rounded-xl transition-all shadow-md cursor-pointer">
+                Submit Guess
+            </button>
+        </form>
+
+        <button id="reset-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 px-4 rounded-xl transition-all shadow-md cursor-pointer hidden mt-4">
+            🔄 Play Again
+        </button>
+    </div>
+
+    <script>
+        // State Variables (Mirroring your Python main() variables)
+        let secretNumber;
+        let attempts = 0;
+        let bestScore = Infinity;
+
+        // DOM Element Cache
+        const gameForm = document.getElementById('game-form');
+        const userGuess = document.getElementById('user-guess');
+        const submitBtn = document.getElementById('submit-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const feedbackBox = document.getElementById('feedback-box');
+        const attemptCountEl = document.getElementById('attempt-count');
+        const bestScoreEl = document.getElementById('best-score');
+
+        // Start a brand new round (Matches play_game() generation initialization)
+        function startNewGame() {
+            secretNumber = Math.floor(Math.random() * 100) + 1;
+            attempts = 0;
+            
+            // UI Resets
+            attemptCountEl.innerText = attempts;
+            feedbackBox.className = "bg-slate-950 p-4 rounded-xl min-h-[64px] flex items-center justify-center font-medium text-slate-300 mb-6 border border-slate-800";
+            feedbackBox.innerText = "🎯 I've chosen a new number. Start guessing!";
+            
+            userGuess.value = '';
+            userGuess.disabled = false;
+            
+            submitBtn.classList.remove('hidden');
+            resetBtn.classList.add('hidden');
+            userGuess.focus();
+        }
+
+        // Handle Guess Processing (Mirrors your logic loop inside Python while True)
+        gameForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const guessRaw = userGuess.value;
+            const guess = parseInt(guessRaw, 10);
+
+            // 1. Sanitize for empty/NaN strings (Mirrors ValueError except handling)
+            if (isNaN(guess)) {
+                feedbackBox.className = "bg-rose-950/40 border border-rose-800 text-rose-300 p-4 rounded-xl min-h-[64px] flex items-center justify-center font-medium mb-6";
+                feedbackBox.innerText = "❌ Invalid input! Please type an actual number.";
+                return;
+            }
+
+            // 2. Out of bounds check
+            if (guess < 1 || guess > 100) {
+                feedbackBox.className = "bg-amber-950/40 border border-amber-800 text-amber-300 p-4 rounded-xl min-h-[64px] flex items-center justify-center font-medium mb-6";
+                feedbackBox.innerText = "⚠️ Out of bounds! Please guess a number between 1 and 100.";
+                userGuess.value = '';
+                return;
+            }
+
+            // Valid guess increments global attempts
+            attempts++;
+            attemptCountEl.innerText = attempts;
+
+            // 3. High-Low Check Branch Logic
+            if (guess < secretNumber) {
+                feedbackBox.className = "bg-slate-950 p-4 rounded-xl min-h-[64px] flex items-center justify-center font-medium text-sky-400 mb-6 border border-slate-800";
+                feedbackBox.innerText = "📉 Too low! Try a higher number.";
+                userGuess.value = '';
+            } else if (guess > secretNumber) {
+                feedbackBox.className = "bg-slate-950 p-4 rounded-xl min-h-[64px] flex items-center justify-center font-medium text-orange-400 mb-6 border border-slate-800";
+                feedbackBox.innerText = "📈 Too high! Try a lower number.";
+                userGuess.value = '';
+            } else {
+                // Correct Answer branch matched!
+                feedbackBox.className = "bg-emerald-950/50 border border-emerald-700 text-emerald-400 p-4 rounded-xl min-h-[64px] flex items-center justify-center font-bold text-lg mb-6";
+                feedbackBox.innerText = `🎉 Correct! You found the number in ${attempts} attempts.`;
+                
+                handleGameOver();
+            }
+        });
+
+        // Evaluate and record scores at end of round (Mirrors Python main() loops)
+        function handleGameOver() {
+            userGuess.disabled = true;
+            submitBtn.classList.add('hidden');
+            resetBtn.classList.remove('hidden');
+
+            // Track Personal Best metrics
+            if (attempts < bestScore) {
+                bestScore = attempts;
+                bestScoreEl.innerText = bestScore;
+                
+                // Append special alert context for a record breakage
+                feedbackBox.innerHTML = `🎉 Correct! You found the number in ${attempts} attempts.<br>🏆 New Personal Best Score!`;
+            }
+        }
+
+        // Wire reset trigger button to run initialization
+        resetBtn.addEventListener('click', startNewGame);
+
+        // Run app on initial launch layout paint
+        startNewGame();
+    </script>
+</body>
+</html>
