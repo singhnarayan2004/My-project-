@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Chess Engine</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .square-light { background-color: #f0d9b5; color: #b58863; }
+        .square-dark { background-color: #b58863; color: #f0d9b5; }
+        .highlight-destination { background-color: rgba(20, 184, 166, 0.5) !important; } /* Teal indicators */
+        .highlight-selected { background-color: rgba(234, 179, 8, 0.4) !important; }     /* Yellow focus */
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="max-w-4xl w-full flex flex-col md:flex-row gap-8 items-center justify-center">
+        
+        <div class="flex flex-col items-center">
+            <div id="status-banner" class="w-full mb-4 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-center font-medium tracking-wide text-sm shadow-md">
+                White's Turn
+            </div>
+
+            <div id="chessboard" class="grid grid-cols-8 grid-rows-8 w-[340px] h-[340px] sm:w-[460px] sm:h-[460px] border-4 border-slate-800 rounded-lg shadow-2xl overflow-hidden select-none">
+                </div>
+        </div>
+
+        <div class="w-full md:w-80 bg-slate-800 border border-slate-700 p-5 rounded-2xl shadow-xl flex flex-col h-[400px] sm:h-[515px]">
+            <h2 class="text-xl font-bold text-white mb-2 tracking-tight">Match Control</h2>
+            <p class="text-slate-400 text-xs mb-4">Proper rules, checkmate detection & log analysis.</p>
+            
+            <div class="flex-1 bg-slate-950 rounded-xl p-3 border border-slate-900 overflow-y-auto font-mono text-xs text-slate-300 space-y-1" id="move-history">
+                <div class="text-slate-500 italic text-center py-4">No moves played yet</div>
+            </div>
+
+            <button id="reset-btn" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-xl transition-all shadow-md cursor-pointer text-sm">
+                🔄 Reset Match
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // Initialize the Core Rules Engine via Chess.js Global Dependency constructor
+        const chess = new Chess();
+        
+        // Cache DOM selectors
+        const boardElement = document.getElementById('chessboard');
+        const statusBanner = document.getElementById('status-banner');
+        const moveHistory = document.getElementById('move-history');
+        const resetBtn = document.getElementById('reset-btn');
+
+        let selectedSquare = null;
+        let possibleMoves = [];
+
+        // Unicode translation map for standard chess piece layouts
+        const piecesUnicode = {
+            'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚',
+            'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'
+        };
+
+        // Generate map layout structure
+        function createBoard() {
+            boardElement.innerHTML = '';
+            
+            // Chess files/ranks tracking definitions loops (Top to Bottom rendering)
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const squareElement = document.createElement('div');
+                    
+                    // Convert row/col indexes to standard Algebraic Notation strings (e.g., "e4")
+                    const file = String.fromCharCode(97 + col); // 97 is ASCII code for 'a'
+                    const rank = 8 - row;
+                    const squareName = `${file}${rank}`;
+                    
+                    squareElement.dataset.square = squareName;
+                    
+                    // Style Alternating Checkered pattern formulas
+                    const isDark = (row + col) % 2 === 1;
+                    squareElement.className = `flex items-center justify-center text-4xl sm:text-5xl font-normal relative cursor-pointer square-${isDark ? 'dark' : 'light'} transition-all duration-100`;
+                    
+                    // Wire unique interactive click handler listeners to individual cells
+                    squareElement.addEventListener('click', () => handleSquareClick(squareName));
+                    
+                    boardElement.appendChild(squareElement);
+                }
+            }
+            renderPieces();
+        }
+
+        // Draw active pieces from chess.js onto the board matrix
+        function renderPieces() {
+            const currentBoardState = chess.board(); // Returns 2D matrix layout arrays
+            
+            // Loop array locations mapping coordinates safely 
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const file = String.fromCharCode(97 + col);
+                    const rank = 8 - row;
+                    const squareName = `${file}${rank}`;
+                    
+                    const squareData = currentBoardState[row][col];
+                    const squareCell = boardElement.querySelector(`[data-square="${squareName}"]`);
+                    
+                    if (squareData) {
+                        // Match piece color type variants dynamically to determine target Unicode symbol case
+                        const charSymbol = squareData.color === 'w' ? squareData.type.toUpperCase() : squareData.type.toLowerCase();
+                        squareCell.innerText = piecesUnicode[charSymbol];
+                        
+                        // Apply accessible inline coloring metrics safely
+                        if(squareData.color === 'w') {
+                            squareCell.className = squareCell.className.replace(/\btext-slate-900\b/g, "") + " text-white filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.6)]";
+                        } else {
+                            squareCell.className = squareCell.className.replace(/\btext-white\b/g, "") + " text-slate-950";
+                        }
+                    } else {
+                        squareCell.innerText = '';
+                    }
+                }
+            }
+            updateStatus();
+        }
+
+        // Handle structural Click routing movements and workflows
+        function handleSquareClick(squareName) {
+            // Remove lingering highlight design structures cleanly
+            clearHighlights();
+
+            // Case A: User clicking a destination that is part of their valid move options
+            if (possibleMoves.includes(squareName)) {
+                executeMove(selectedSquare, squareName);
+                selectedSquare = null;
+                possibleMoves = [];
+                return;
+            }
+
+            // Case B: Evaluate starting selection conditions
+            const piece = chess.get(squareName);
+            if (piece && piece.color === chess.turn()) {
+                selectedSquare = squareName;
+                
+                // Fetch valid destinations from chess.js rule engine wrapper
+                possibleMoves = chess.moves({ square: squareName, verbose: true }).map(m => m.to);
+                
+                applyHighlights(squareName);
+            } else {
+                // Clicking off-targets drops previous focus
+                selectedSquare = null;
+                possibleMoves = [];
+            }
+        }
+
+        // Apply background accent indicator markers to highlighted nodes
+        function applyHighlights(source) {
+            const sourceCell = boardElement.querySelector(`[data-square="${source}"]`);
+            if (sourceCell) sourceCell.classList.add('highlight-selected');
+
+            possibleMoves.forEach(target => {
+                const targetCell = boardElement.querySelector(`[data-square="${target}"]`);
+                if (targetCell) targetCell.classList.add('highlight-destination');
+            });
+        }
+
+        // Wipe standard layout style modification target overrides
+        function clearHighlights() {
+            const allSquares = boardElement.querySelectorAll('[data-square]');
+            allSquares.forEach(sq => {
+                sq.classList.remove('highlight-selected', 'highlight-destination');
+            });
+        }
+
+        // Commit validated structural moves into runtime history models
+        function executeMove(from, to) {
+            const moveResult = chess.move({
+                from: from,
+                to: to,
+                promotion: 'q' // Auto-promote to Queen for layout simplicity
+            });
+
+            if (moveResult) {
+                renderPieces();
+                updateHistoryLog();
+            }
+        }
+
+        // Update historical movement registry dashboards displays
+        function updateHistoryLog() {
+            moveHistory.innerHTML = '';
+            const history = chess.history({ verbose: true });
+
+            if (history.length === 0) {
+                moveHistory.innerHTML = `<div class="text-slate-500 italic text-center py-4">No moves played yet</div>`;
+                return;
+            }
+
+            let inlineLogHTML = '';
+            history.forEach((move, index) => {
+                if (index % 2 === 0) {
+                    inlineLogHTML += `<div class="py-0.5"><span class="text-indigo-400 w-8 inline-block">${Math.floor(index / 2) + 1}.</span> <span class="text-slate-200 w-20 inline-block">${move.san}</span>`;
+                } else {
+                    inlineLogHTML += `<span class="text-slate-400">${move.san}</span></div>`;
+                }
+            });
+            
+            moveHistory.innerHTML = inlineLogHTML;
+            moveHistory.scrollTop = moveHistory.scrollHeight; // Keep history scrolled to bottom
+        }
+
+        // Check validation rules limits states to broadcast appropriate labels
+        function updateStatus() {
+            let statusText = chess.turn() === 'w' ? "White's Turn" : "Black's Turn";
+
+            if (chess.in_checkmate()) {
+                statusText = `🏁 Game Over! Checkmate. ${chess.turn() === 'w' ? 'Black' : 'White'} wins!`;
+                statusBanner.className = "w-full mb-4 px-4 py-2.5 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-center font-bold text-sm shadow-md";
+            } else if (chess.in_draw() || chess.in_stalemate() || chess.in_threefold_repetition()) {
+                statusText = "🏁 Game Over! Match tied via Draw / Stalemate.";
+                statusBanner.className = "w-full mb-4 px-4 py-2.5 rounded-xl bg-amber-950/40 border border-amber-800 text-amber-300 text-center font-bold text-sm shadow-md";
+            } else if (chess.in_check()) {
+                statusText += " (⚠️ In Check!)";
+                statusBanner.className = "w-full mb-4 px-4 py-2.5 rounded-xl bg-orange-950/40 border border-orange-800 text-orange-400 text-center font-semibold text-sm shadow-md animate-pulse";
+            } else {
+                // Default running active configuration style layout patterns
+                statusBanner.className = "w-full mb-4 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-center font-medium tracking-wide text-sm shadow-md text-slate-200";
+            }
+
+            statusBanner.innerText = statusText;
+        }
+
+        // Wire fresh reset trigger state handlers
+        resetBtn.addEventListener('click', () => {
+            chess.reset();
+            selectedSquare = null;
+            possibleMoves = [];
+            clearHighlights();
+            renderPieces();
+            updateHistoryLog();
+        });
+
+        // Initialize board generation routines on baseline page layout load execution
+        createBoard();
+    </script>
+</body>
+</html>
