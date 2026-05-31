@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Weather Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Smooth transitions for background changes */
+        body {
+            transition: background 0.8s ease, color 0.8s ease;
+        }
+        /* Custom glassmorphism classes */
+        .glass {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .glass-dark {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center p-4 sm:p-8">
+
+    <div class="w-full max-w-4xl flex flex-col gap-6">
+        <header class="flex flex-col sm:flex-row justify-between items-center gap-4 w-full">
+            <h1 class="text-3xl font-extrabold tracking-tight drop-shadow-md">
+                <i class="fa-solid fa-cloud-sun-rain text-amber-400 mr-2"></i>SkyFlow
+            </h1>
+            <div class="w-full sm:w-auto flex shadow-lg rounded-xl overflow-hidden border border-white/20">
+                <input 
+                    type="text" 
+                    id="cityInput" 
+                    placeholder="Search city... (e.g., Paris)" 
+                    class="px-4 py-3 bg-white/10 backdrop-blur-md text-white placeholder-white/60 focus:outline-none w-full sm:w-64 text-base"
+                >
+                <button 
+                    id="searchBtn" 
+                    class="bg-amber-500 hover:bg-amber-600 transition-colors px-6 text-slate-900 font-bold flex items-center justify-center"
+                >
+                    <i class="fa-solid fa-magnifying-glass text-lg"></i>
+                </button>
+            </div>
+        </header>
+
+        <div id="errorMessage" class="hidden bg-red-500/80 backdrop-blur-md text-white px-4 py-3 rounded-xl text-center font-medium border border-red-400/30 shadow-lg">
+            City not found. Please try again!
+        </div>
+
+        <main id="weatherContent" class="hidden flex flex-col gap-6">
+            
+            <section id="currentCard" class="glass rounded-3xl p-6 sm:p-8 shadow-2xl grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div class="flex flex-col gap-2">
+                    <div class="flex items-center gap-2 text-slate-200 font-medium tracking-wide">
+                        <i class="fa-solid fa-location-dot text-amber-400"></i>
+                        <span id="cityName" class="text-xl">City, Country</span>
+                    </div>
+                    <div class="flex items-baseline gap-2 mt-2">
+                        <span id="currentTemp" class="text-7xl font-black tracking-tighter">0°</span>
+                        <span class="text-2xl font-light text-slate-200">C</span>
+                    </div>
+                    <p id="weatherDesc" class="text-xl capitalize font-medium text-amber-300 tracking-wide mt-1">Clear Sky</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 border-t md:border-t-0 md:border-l border-white/20 pt-4 md:pt-0 md:pl-6">
+                    <div class="flex items-center gap-3">
+                        <div class="p-3 bg-white/10 rounded-xl"><i class="fa-solid fa-droplet text-blue-400 text-xl w-6 text-center"></i></div>
+                        <div>
+                            <p class="text-xs text-slate-300 uppercase font-semibold tracking-wider">Humidity</p>
+                            <p id="humidity" class="text-lg font-bold">0%</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="p-3 bg-white/10 rounded-xl"><i class="fa-solid fa-wind text-teal-300 text-xl w-6 text-center"></i></div>
+                        <div>
+                            <p class="text-xs text-slate-300 uppercase font-semibold tracking-wider">Wind Speed</p>
+                            <p id="windSpeed" class="text-lg font-bold">0 m/s</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="p-3 bg-white/10 rounded-xl"><i class="fa-solid fa-temperature-half text-orange-400 text-xl w-6 text-center"></i></div>
+                        <div>
+                            <p class="text-xs text-slate-300 uppercase font-semibold tracking-wider">Feels Like</p>
+                            <p id="feelsLike" class="text-lg font-bold">0°C</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="p-3 bg-white/10 rounded-xl"><i class="fa-solid fa-compress text-purple-400 text-xl w-6 text-center"></i></div>
+                        <div>
+                            <p class="text-xs text-slate-300 uppercase font-semibold tracking-wider">Pressure</p>
+                            <p id="pressure" class="text-lg font-bold">0 hPa</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2 class="text-xl font-bold mb-4 tracking-wide flex items-center gap-2">
+                    <i class="fa-regular fa-calendar-days text-amber-400"></i> 5-Day Forecast
+                </h2>
+                <div id="forecastContainer" class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                    </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const API_KEY = 'YOUR_API_KEY_HERE'; // Replace with your OpenWeatherMap API Key
+        const BASE_URL = 'https://api.openweathermap.org/data/2.5/';
+
+        // --- DOM ELEMENTS ---
+        const cityInput = document.getElementById('cityInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const weatherContent = document.getElementById('weatherContent');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        const cityName = document.getElementById('cityName');
+        const currentTemp = document.getElementById('currentTemp');
+        const weatherDesc = document.getElementById('weatherDesc');
+        const humidity = document.getElementById('humidity');
+        const windSpeed = document.getElementById('windSpeed');
+        const feelsLike = document.getElementById('feelsLike');
+        const pressure = document.getElementById('pressure');
+        const forecastContainer = document.getElementById('forecastContainer');
+        const currentCard = document.getElementById('currentCard');
+
+        // --- BACKGROUND THEMES CONFIG ---
+        const themes = {
+            Clear: { bg: 'linear-gradient(to bottom right, #f59e0b, #ea580c)', cardClass: 'glass', isDark: false },
+            Clouds: { bg: 'linear-gradient(to bottom right, #64748b, #334155)', cardClass: 'glass-dark', isDark: true },
+            Rain: { bg: 'linear-gradient(to bottom right, #38bdf8, #1e3a8a)', cardClass: 'glass-dark', isDark: true },
+            Drizzle: { bg: 'linear-gradient(to bottom right, #0ea5e9, #1e293b)', cardClass: 'glass-dark', isDark: true },
+            Thunderstorm: { bg: 'linear-gradient(to bottom right, #475569, #1e1b4b)', cardClass: 'glass-dark', isDark: true },
+            Snow: { bg: 'linear-gradient(to bottom right, #e2e8f0, #94a3b8)', cardClass: 'glass', isDark: false },
+            Mist: { bg: 'linear-gradient(to bottom right, #cbd5e1, #475569)', cardClass: 'glass', isDark: false },
+            Smoke: { bg: 'linear-gradient(to bottom right, #cbd5e1, #475569)', cardClass: 'glass', isDark: false },
+            Haze: { bg: 'linear-gradient(to bottom right, #cbd5e1, #475569)', cardClass: 'glass', isDark: false },
+            Dust: { bg: 'linear-gradient(to bottom right, #cbd5e1, #475569)', cardClass: 'glass', isDark: false },
+            Fog: { bg: 'linear-gradient(to bottom right, #cbd5e1, #475569)', cardClass: 'glass', isDark: false },
+            Sand: { bg: 'linear-gradient(to bottom right, #ca8a04, #78350f)', cardClass: 'glass-dark', isDark: true },
+            Ash: { bg: 'linear-gradient(to bottom right, #cbd5e1, #475569)', cardClass: 'glass', isDark: false },
+            Squall: { bg: 'linear-gradient(to bottom right, #475569, #1e1b4b)', cardClass: 'glass-dark', isDark: true },
+            Tornado: { bg: 'linear-gradient(to bottom right, #0f172a, #020617)', cardClass: 'glass-dark', isDark: true },
+            Default: { bg: 'linear-gradient(to bottom right, #1e293b, #0f172a)', cardClass: 'glass-dark', isDark: true }
+        };
+
+        // --- EVENT LISTENERS ---
+        searchBtn.addEventListener('click', () => fetchWeather(cityInput.value.trim()));
+        cityInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') fetchWeather(cityInput.value.trim());
+        });
+
+        // --- WEATHER FETCH LOGIC ---
+        async function fetchWeather(city) {
+            if (!city) return;
+            errorMessage.classList.add('hidden');
+
+            try {
+                // Fetch Current Weather
+                const currentRes = await fetch(`${BASE_URL}weather?q=${encodeURIComponent(city)}&units=metric&appid=${API_KEY}`);
+                if (!currentRes.ok) throw new Error('City not found');
+                const currentData = await currentRes.json();
+
+                // Fetch 5-Day Forecast
+                const forecastRes = await fetch(`${BASE_URL}forecast?q=${encodeURIComponent(city)}&units=metric&appid=${API_KEY}`);
+                const forecastData = await forecastRes.json();
+
+                updateUI(currentData, forecastData);
+            } catch (error) {
+                errorMessage.classList.remove('hidden');
+                weatherContent.classList.add('hidden');
+            }
+        }
+
+        // --- UPDATE UI COMPONENT ---
+        function updateUI(current, forecast) {
+            // 1. Handle Dynamic Backgrounds and Themes
+            const weatherCondition = current.weather[0].main;
+            const theme = themes[weatherCondition] || themes.Default;
+            
+            document.body.style.background = theme.bg;
+            if (theme.isDark) {
+                document.body.classList.add('text-white');
+                document.body.classList.remove('text-slate-900');
+            } else {
+                document.body.classList.add('text-slate-900');
+                document.body.classList.remove('text-white');
+            }
+
+            // Sync main card structural glass styling
+            currentCard.className = `${theme.cardClass} rounded-3xl p-6 sm:p-8 shadow-2xl grid grid-cols-1 md:grid-cols-2 gap-6 items-center`;
+
+            // 2. Map Current Weather Values
+            cityName.textContent = `${current.name}, ${current.sys.country}`;
+            currentTemp.textContent = Math.round(current.main.temp);
+            weatherDesc.textContent = current.weather[0].description;
+            humidity.textContent = `${current.main.humidity}%`;
+            windSpeed.textContent = `${current.wind.speed} m/s`;
+            feelsLike.textContent = `${Math.round(current.main.feels_like)}°C`;
+            pressure.textContent = `${current.main.pressure} hPa`;
+
+            // 3. Process & Render 5-Day Forecast
+            forecastContainer.innerHTML = '';
+            
+            // Filter timestamps to get one snapshot per day (usually mid-day e.g., 12:00:00)
+            const dailyData = forecast.list.filter(item => item.dt_txt.includes("12:00:00"));
+
+            // Fallback check if 12:00:00 structural time marker is missing from structural edge responses
+            const finalForecasts = dailyData.length ? dailyData : forecast.list.filter((_, idx) => idx % 8 === 0).slice(0, 5);
+
+            finalForecasts.forEach(day => {
+                const dateObj = new Date(day.dt * 1000);
+                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                const iconCode = day.weather[0].icon;
+                const iconUrl = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+                const temp = Math.round(day.main.temp);
+
+                const forecastCard = document.createElement('div');
+                forecastCard.className = `${theme.cardClass} p-4 rounded-2xl flex flex-col items-center gap-1 text-center shadow-md transition-transform hover:scale-105`;
+                forecastCard.innerHTML = `
+                    <p class="font-bold tracking-wide">${dayName}</p>
+                    <img src="${iconUrl}" alt="${day.weather[0].main}" class="w-14 h-14 object-contain">
+                    <p class="text-xs capitalize opacity-80 line-clamp-1">${day.weather[0].main}</p>
+                    <p class="text-xl font-black mt-1">${temp}°</p>
+                `;
+                forecastContainer.appendChild(forecastCard);
+            });
+
+            // Reveal dashboard content
+            weatherContent.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
