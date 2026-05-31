@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Snake Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        .arcade-font { font-family: 'Press Start 2P', cursive; }
+        canvas { image-rendering: pixelated; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4 selection:bg-emerald-500 selection:text-slate-900">
+
+    <div class="w-full max-w-lg flex flex-col items-center">
+        <h1 class="arcade-font text-2xl md:text-3xl text-emerald-400 mb-6 tracking-wider animate-pulse text-center">
+            SNAKE GAME
+        </h1>
+
+        <div class="w-full bg-slate-900 border-4 border-slate-800 rounded-xl p-4 mb-4 flex justify-between items-center arcade-font text-[10px] md:text-xs tracking-tight">
+            <div>
+                <span class="text-slate-400 block mb-1">SCORE</span>
+                <span id="current-score" class="text-white text-lg font-bold">0000</span>
+            </div>
+            <div class="text-right">
+                <span class="text-slate-400 block mb-1">HI-SCORE</span>
+                <span id="high-score" class="text-amber-400 text-lg font-bold">0000</span>
+            </div>
+        </div>
+
+        <div class="relative bg-slate-900 p-2 rounded-2xl border-4 border-slate-800 shadow-2xl shadow-emerald-950/20">
+            <canvas id="gameCanvas" width="400" height="400" class="bg-slate-950 rounded-lg block"></canvas>
+            
+            <div id="game-over-screen" class="absolute inset-0 bg-slate-950/90 rounded-xl flex flex-col items-center justify-center hidden transition-all duration-200">
+                <h2 class="arcade-font text-rose-500 text-xl mb-2 tracking-widest">GAME OVER</h2>
+                <p class="text-slate-400 text-xs mb-6 font-medium">Your snake crashed!</p>
+                <button id="restart-btn" class="arcade-font bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs px-6 py-3 rounded-lg shadow-lg hover:scale-105 transition-transform cursor-pointer">
+                    PLAY AGAIN
+                </button>
+            </div>
+        </div>
+
+        <p class="mt-6 text-xs text-slate-500 font-medium tracking-wide text-center">
+            Use <span class="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700 mx-0.5">↑</span>
+            <span class="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700 mx-0.5">↓</span>
+            <span class="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700 mx-0.5">←</span>
+            <span class="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700 mx-0.5">→</span> Arrow Keys on your keyboard to navigate.
+        </p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Dom Target Elements
+        const scoreEl = document.getElementById('current-score');
+        const highScoreEl = document.getElementById('high-score');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // Grid configurations 
+        const gridSize = 20; // Size of each cell block in pixels
+        const tileCount = canvas.width / gridSize; // 20x20 Grid canvas plane
+
+        // State Loop Management Variables
+        let snake = [];
+        let food = { x: 0, y: 0 };
+        let dx = gridSize; // Dynamic X velocity displacement direction movement rate
+        let dy = 0;        // Dynamic Y velocity displacement direction movement rate
+        let score = 0;
+        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        let gameInterval = null;
+        const gameSpeed = 100; // Game loop clock tick refresh cycle step time in milliseconds
+
+        // Pad score digits display text formatter logic helper
+        function zeroPad(num, size = 4) {
+            let s = num + "";
+            while (s.length < size) s = "0" + s;
+            return s;
+        }
+
+        // Initialize/Reset Game Loop System Setup
+        function initGame() {
+            // Setup default snake coordinates (Centered starting posture tail stretching right-to-left)
+            snake = [
+                { x: 10 * gridSize, y: 10 * gridSize },
+                { x: 9 * gridSize, y: 10 * gridSize },
+                { x: 8 * gridSize, y: 10 * gridSize }
+            ];
+            
+            dx = gridSize;
+            dy = 0;
+            score = 0;
+            
+            scoreEl.innerText = zeroPad(score);
+            highScoreEl.innerText = zeroPad(highScore);
+            gameOverScreen.classList.add('hidden');
+            
+            generateFoodPosition();
+            
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(mainGameLoop, gameSpeed);
+        }
+
+        // Core tick clock routine cycle execution function
+        function mainGameLoop() {
+            if (hasGameEnded()) {
+                handleGameOver();
+                return;
+            }
+
+            clearCanvas();
+            drawFood();
+            moveSnake();
+            drawSnake();
+        }
+
+        // Wipe canvas surface cleanly every tick frame update cycle step
+        function clearCanvas() {
+            ctx.fillStyle = '#020617'; // slate-950 color matching theme grid background floor
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // Render Snake Blocks
+        function drawSnake() {
+            snake.forEach((part, index) => {
+                const isHead = index === 0;
+                ctx.fillStyle = isHead ? '#34d399' : '#059669'; // Accent head bright emerald green vs dark body emerald green
+                ctx.strokeStyle = '#020617'; // Inner body cell divider outline margins
+                
+                // Rounded corner square frame paint rendering
+                ctx.fillRect(part.x, part.y, gridSize, gridSize);
+                ctx.strokeRect(part.x, part.y, gridSize, gridSize);
+            });
+        }
+
+        // Render Food Target Instance Object Block
+        function drawFood() {
+            ctx.fillStyle = '#f87171'; // Red food target dot matching palette accent highlight colors
+            ctx.beginPath();
+            // Centers circular arc circle radius sphere element point layout directly matching standard tile positions safely
+            const radius = gridSize / 2;
+            ctx.arc(food.x + radius, food.y + radius, radius - 2, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        // Move the physical coordinate array coordinates dynamic directions
+        function moveSnake() {
+            // Construct head node displacement array push element block location coordinate positions
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+
+            // Verify if eating condition state logic check matches target positions cleanly
+            const hasEatenFood = snake[0].x === food.x && snake[0].y === food.y;
+            if (hasEatenFood) {
+                score += 10;
+                scoreEl.innerText = zeroPad(score);
+                generateFoodPosition();
+            } else {
+                // If not eating food target instances drop trailing segment node position array data to sustain layout length
+                snake.pop();
+            }
+        }
+
+        // Generate coordinates for new food objects within bound grids safely
+        function generateFoodPosition() {
+            food.x = Math.floor(Math.random() * tileCount) * gridSize;
+            food.y = Math.floor(Math.random() * tileCount) * gridSize;
+
+            // Prevent food items rendering inside the active snake body blocks recursively
+            const foodCollidesWithBody = snake.some(part => part.x === food.x && part.y === food.y);
+            if (foodCollidesWithBody) {
+                generateFoodPosition();
+            }
+        }
+
+        // Evaluate validation constraint conditions logic check branches
+        function hasGameEnded() {
+            // 1. Structural body collision condition check loop 
+            for (let i = 4; i < snake.length; i++) {
+                if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) return true;
+            }
+
+            // 2. Map border coordinate boundaries limit threshold breach check 
+            const hitLeftWall = snake[0].x < 0;
+            const hitRightWall = snake[0].x >= canvas.width;
+            const hitTopWall = snake[0].y < 0;
+            const hitBottomWall = snake[0].y >= canvas.height;
+
+            return hitLeftWall || hitRightWall || hitTopWall || hitBottomWall;
+        }
+
+        // Terminate interval operations loops and adjust storage components UI layouts safely
+        function handleGameOver() {
+            clearInterval(gameInterval);
+            gameOverScreen.classList.remove('hidden');
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('snakeHighScore', highScore);
+                highScoreEl.innerText = zeroPad(highScore);
+            }
+        }
+
+        // Register Keyboard Input Direction Listeners
+        window.addEventListener('keydown', (e) => {
+            const keyPressed = e.key;
+            
+            // Vector variables safety states check variables to prevent snake double backing on itself instantly
+            const goingUp = dy === -gridSize;
+            const goingDown = dy === gridSize;
+            const goingRight = dx === gridSize;
+            const goingLeft = dx === -gridSize;
+
+            // Lock navigation changes to directional perpendicular options safely
+            if ((keyPressed === 'ArrowLeft' || keyPressed === 'a') && !goingRight) {
+                dx = -gridSize;
+                dy = 0;
+            }
+            if ((keyPressed === 'ArrowUp' || keyPressed === 'w') && !goingDown) {
+                dx = 0;
+                dy = -gridSize;
+            }
+            if ((keyPressed === 'ArrowRight' || keyPressed === 'd') && !goingLeft) {
+                dx = gridSize;
+                dy = 0;
+            }
+            if ((keyPressed === 'ArrowDown' || keyPressed === 's') && !goingUp) {
+                dx = 0;
+                dy = gridSize;
+            }
+
+            // Stop arrow-keys browser tracking scroll behavior default actions from shifting UI frames
+            if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+
+        // Event hooks layout
+        restartBtn.addEventListener('click', initGame);
+
+        // Execute baseline startup trigger parameters initialization loops
+        initGame();
+    </script>
+</body>
+</html>
